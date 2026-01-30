@@ -1,5 +1,5 @@
-# Dockerfile
-FROM python:3.11-slim
+# Dockerfile - TESTING ONLY (vulnerable base image)
+FROM python:3.6-slim
 
 WORKDIR /app
 
@@ -10,4 +10,4 @@ COPY app.py .
 
 EXPOSE 8080
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
+CMD ["python", "app.py"]
