@@ -26,7 +26,7 @@ jobs:
 
       # ============================================
       # CrowdStrike FCS IaC Scan
-      # Scans Terraform, Kubernetes, CloudFormation
+      # Results will be uploaded to Falcon Console
       # ============================================
       - name: CrowdStrike FCS IaC Security Scan
         id: fcs-iac-scan
@@ -36,12 +36,24 @@ jobs:
           falcon_region: 'us-2'
           scan_type: iac
           path: '.'
+          
           # Fail on first critical vulnerability
           fail_on: 'critical=1'
           severities: 'critical,high,medium'
+          
+          # Report settings
           report_formats: 'json,sarif'
           output_path: './iac-scan-results/'
+          
+          # ============================================
+          # UPLOAD TO CROWDSTRIKE FALCON CONSOLE
+          # ============================================
+          upload_results: true
+          
+          # Project identification in Falcon Console
           project_name: 'testrepo-iac-scan'
+          project_owners: 'security-team@yourcompany.com'
+          
         env:
           FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
 
@@ -76,20 +88,20 @@ jobs:
           echo "🔍 IaC SCAN RESULTS"
           echo "============================================"
           echo "Exit Code: ${{ steps.fcs-iac-scan.outputs.exit-code }}"
+          echo ""
+          echo "📤 Results uploaded to CrowdStrike Falcon Console"
+          echo "   View at: https://falcon.crowdstrike.com"
+          echo "   Navigate to: Cloud Security > IaC Security"
+          echo ""
           
           if [ "${{ steps.fcs-iac-scan.outputs.exit-code }}" != "0" ]; then
-            echo ""
             echo "❌ PIPELINE BLOCKED!"
             echo "Critical IaC misconfigurations found."
             echo ""
-            echo "Common issues detected:"
-            echo "  • S3 buckets with public access"
-            echo "  • Security groups open to 0.0.0.0/0"
-            echo "  • Unencrypted databases"
-            echo "  • Hardcoded credentials"
-            echo "  • Privileged containers"
+            echo "Review findings in:"
+            echo "  • GitHub Security tab"
+            echo "  • CrowdStrike Falcon Console"
             echo ""
-            echo "Fix these issues before merging!"
             exit 1
           fi
           
