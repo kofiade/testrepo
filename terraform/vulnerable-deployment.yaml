@@ -1,0 +1,47 @@
+# kubernetes/vulnerable-deployment.yaml
+# INTENTIONALLY VULNERABLE - FOR TESTING ONLY
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vulnerable-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vulnerable-app
+  template:
+    metadata:
+      labels:
+        app: vulnerable-app
+    spec:
+      containers:
+      - name: vulnerable-container
+        image: nginx:latest
+        # CRITICAL: Running as root
+        securityContext:
+          runAsUser: 0
+          privileged: true           # CRITICAL: Privileged container
+          allowPrivilegeEscalation: true  # CRITICAL: Can escalate privileges
+          readOnlyRootFilesystem: false
+        
+        # CRITICAL: No resource limits
+        # Missing resources section entirely
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vulnerable-pod
+spec:
+  hostNetwork: true    # CRITICAL: Using host network
+  hostPID: true        # CRITICAL: Using host PID namespace
+  hostIPC: true        # CRITICAL: Using host IPC
+  containers:
+  - name: vulnerable
+    image: nginx
+    securityContext:
+      privileged: true
+      capabilities:
+        add:
+          - ALL        # CRITICAL: All capabilities added
