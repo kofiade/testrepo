@@ -25,7 +25,7 @@ jobs:
       # ============================================
       - name: Pull vulnerable image for testing
         run: |
-          echo "🧪 TESTING MODE: Using vulnerable nginx:1.16 image"
+          echo "🧪 TESTING MODE: Using vulnerable debian:stretch-slim image"
           docker pull debian:stretch-slim
 
       # ============================================
