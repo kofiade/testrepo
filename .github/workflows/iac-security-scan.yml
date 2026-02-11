@@ -1,0 +1,111 @@
+# .github/workflows/iac-security-scan.yml
+name: IaC Security Scan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - 'kubernetes/**'
+      - 'cloudformation/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  iac-security-scan:
+    name: IaC Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ============================================
+      # CrowdStrike FCS IaC Scan
+      # Scans Terraform, Kubernetes, CloudFormation
+      # ============================================
+      - name: CrowdStrike FCS IaC Security Scan
+        id: fcs-iac-scan
+        uses: crowdstrike/fcs-action@v3.0.0
+        with:
+          falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
+          falcon_region: 'us-1'
+          scan_type: iac
+          path: '.'
+          # Fail on first critical vulnerability
+          fail_on: 'critical=1'
+          severities: 'critical,high,medium'
+          report_formats: 'json,sarif'
+          output_path: './iac-scan-results/'
+          project_name: 'testrepo-iac-scan'
+        env:
+          FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
+
+      # ============================================
+      # Upload results to GitHub Security tab
+      # ============================================
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: ./iac-scan-results/
+        continue-on-error: true
+
+      # ============================================
+      # Upload scan results as artifact
+      # ============================================
+      - name: Upload scan results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iac-scan-results
+          path: ./iac-scan-results/
+          retention-days: 30
+
+      # ============================================
+      # Security Gate Decision
+      # ============================================
+      - name: Security Gate Decision
+        if: always()
+        run: |
+          echo "============================================"
+          echo "🔍 IaC SCAN RESULTS"
+          echo "============================================"
+          echo "Exit Code: ${{ steps.fcs-iac-scan.outputs.exit-code }}"
+          
+          if [ "${{ steps.fcs-iac-scan.outputs.exit-code }}" != "0" ]; then
+            echo ""
+            echo "❌ PIPELINE BLOCKED!"
+            echo "Critical IaC misconfigurations found."
+            echo ""
+            echo "Common issues detected:"
+            echo "  • S3 buckets with public access"
+            echo "  • Security groups open to 0.0.0.0/0"
+            echo "  • Unencrypted databases"
+            echo "  • Hardcoded credentials"
+            echo "  • Privileged containers"
+            echo ""
+            echo "Fix these issues before merging!"
+            exit 1
+          fi
+          
+          echo "✅ IaC security scan passed!"
+
+  # ============================================
+  # Deploy only if IaC scan passes
+  # ============================================
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    needs: iac-security-scan
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy notification
+        run: |
+          echo "🚀 INFRASTRUCTURE DEPLOYMENT APPROVED"
+          echo "IaC security scan passed - safe to deploy!"
