@@ -26,7 +26,7 @@ jobs:
       - name: Pull vulnerable image for testing
         run: |
           echo "🧪 TESTING MODE: Using vulnerable nginx:1.16 image"
-          docker pull nginx:1.16
+          docker pull 10-alpine
 
       # ============================================
       # CrowdStrike Scan - Should FAIL on this image
@@ -38,7 +38,7 @@ jobs:
           falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
           falcon_region: 'us-2'
           scan_type: image
-          image: nginx:1.16
+          image: 10-alpine
           fail_on: 'critical=1'
           minimum_severity: critical
           show_full_description: true
